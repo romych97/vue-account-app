@@ -1,66 +1,73 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useAccountStore } from '@/stores/accountStore';
-import { NButton, NInput, NSelect, NForm, NFormItem, NTable, NTag, NIcon } from 'naive-ui';
-import { Trash } from '@vicons/ionicons5';
+  import { ref } from 'vue';
+  import { useAccountStore } from '@/stores/accountStore';
+  import { NButton, NInput, NSelect, NForm, NFormItem, NTable, NTag, NIcon } from 'naive-ui';
+  import { Trash } from '@vicons/ionicons5';
 
-const accountStore = useAccountStore();
-const label = ref('');
-const type = ref<string | null>(null);
-const login = ref('');
-const password = ref('');
-const accountTypes = [
-  { label: 'LDAP', value: 'LDAP' },
-  { label: 'Локальная', value: 'Standard' }
-];
+  const accountStore = useAccountStore();
+  const label = ref('');
+  const type = ref<string | null>(null);
+  const login = ref('');
+  const password = ref('');
+  const accountTypes = [
+    { label: 'LDAP', value: 'LDAP' },
+    { label: 'Локальная', value: 'Standard' }
+  ];
 
-const formRef = ref();
-const form = ref({
-  label: '',
-  type: null,
-  login: '',
-  password: ''
-});
-
-const rules = {
-  label: [],
-  type: [{ required: true, message: 'Выберите тип', trigger: 'change' }],
-  login: [{ required: true, message: 'Поле обязательно', trigger: 'blur' }],
-  password: [{ required: true, message: 'Поле обязательно', trigger: 'blur' }]
-};
-
-const validateField = (field: string) => {
-  formRef.value?.validateField(field, (errors) => {
-    if (!errors) validateAndSave();
-  });
-};
-
-const validateAndSave = () => {
-  formRef.value?.validate((valid) => {
-    if (valid) {
-      accountStore.addAccount({ ...form.value });
-      console.log('Аккаунт сохранен:', form.value);
-    }
-  });
-};
-
-const addAccount = () => {
-  accountStore.addAccount({
-    labels: label.value.split(';').map(l => l.trim()).filter(l => l),
-    type: type.value as string,
-    login: login.value,
-    password: type.value === 'LDAP' ? null : password.value 
+  const formRef = ref(null);
+  const form = ref({
+    label: '', 
+    labels: [] as string[],
+    type: '',
+    login: '',
+    password: ''
   });
 
-  label.value = '';
-  type.value = null;
-  login.value = '';
-  password.value = '';
-};
+  const rules = {
+    label: [],
+    type: [{ required: true, message: 'Выберите тип', trigger: 'change' }],
+    login: [{ required: true, message: 'Поле обязательно', trigger: ['input', 'blur'] }],
+    password: [{ required: true, message: 'Поле обязательно', trigger: ['input', 'blur'] }]
+  };
 
-const removeAccount = (index: number) => {
-  accountStore.accounts.splice(index, 1);
-};
+  const validateField = (field: string) => {
+    if (!formRef.value) return;
+    formRef.value.validate();
+  };
+
+  const validateAndSave = () => {
+    formRef.value?.validate((valid: boolean) => {
+      if (valid) {
+        const accountData = {
+          ...form.value,
+          labels: form.value.label.split(';').map(l => l.trim()).filter(l => l)
+        };
+        accountStore.addAccount(accountData);
+      }
+    });
+  };
+
+  const addAccount = () => {
+    formRef.value?.validate((valid: boolean) => {
+      if (valid) return;
+
+      const accountData = {
+        label: form.value.label,
+        labels: form.value.label.split(';').map(l => l.trim()).filter(l => l),
+        type: form.value.type,
+        login: form.value.login,
+        password: form.value.type === 'LDAP' ? null : form.value.password
+      };
+
+      accountStore.addAccount(accountData);
+
+      form.value = { label: '', labels: [], type: '', login: '', password: '' };
+    });
+  };
+
+  const removeAccount = (index: number) => {
+    accountStore.accounts.splice(index, 1);
+  };
 </script>
 
 <template>
@@ -83,7 +90,10 @@ const removeAccount = (index: number) => {
               type="password"
               placeholder="Введите пароль" />
     </n-form-item>
-
+    
+    <n-form-item>
+      <n-button type="primary" @click="addAccount">Добавить</n-button>
+    </n-form-item>
   </n-form>
 
   <n-table striped>
